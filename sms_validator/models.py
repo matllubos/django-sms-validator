@@ -29,7 +29,7 @@ def digit_token_generator():
 
 class SMSTokenManager(models.Manager):
 
-    logger = logging.getLogger('sms-validator')
+    logger = logging.getLogger('django-sms-validator')
 
     def is_valid(self, obj, key):
         """
@@ -70,8 +70,7 @@ class SMSTokenManager(models.Manager):
 
         # Strip long messages and remove diacritics
         message = unidecode(render_to_string(template_name, context).strip())
-        sender.send(phone_number, message)
-        return True
+        return not sender.send(phone_number, message).failed
 
 
 class SMSToken(models.Model):
