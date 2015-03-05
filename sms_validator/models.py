@@ -111,3 +111,4 @@ class SMSToken(models.Model):
     class Meta:
         verbose_name = _('SMS token')
         verbose_name_plural = _('SMS tokens')
+        ordering = ('-created_at',)
