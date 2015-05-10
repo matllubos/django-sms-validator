@@ -14,7 +14,7 @@ class Migration(SchemaMigration):
             ('created_at', self.gf('django.db.models.fields.DateTimeField')(auto_now_add=True, blank=True)),
             ('is_active', self.gf('django.db.models.fields.BooleanField')(default=True)),
             ('phone_number', self.gf('django.db.models.fields.CharField')(max_length=20)),
-            ('validating_type', self.gf('django.db.models.fields.related.ForeignKey')(related_name=u'open_shops', to=orm['contenttypes.ContentType'])),
+            ('validating_type', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['contenttypes.ContentType'])),
             ('validating_id', self.gf('django.db.models.fields.PositiveIntegerField')()),
         ))
         db.send_create_signal(u'sms_validator', ['SMSToken'])
@@ -40,7 +40,7 @@ class Migration(SchemaMigration):
             'key': ('django.db.models.fields.CharField', [], {'max_length': '40', 'primary_key': 'True'}),
             'phone_number': ('django.db.models.fields.CharField', [], {'max_length': '20'}),
             'validating_id': ('django.db.models.fields.PositiveIntegerField', [], {}),
-            'validating_type': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "u'open_shops'", 'to': u"orm['contenttypes.ContentType']"})
+            'validating_type': ('django.db.models.fields.related.ForeignKey', [], {'to': u"orm['contenttypes.ContentType']"})
         }
     }
 

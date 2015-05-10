@@ -10,11 +10,8 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
-from django.template.loader import render_to_string
 from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
-
-from unidecode import unidecode
 
 from chamber.shortcuts import get_object_or_none
 
@@ -68,9 +65,10 @@ class SMSTokenManager(models.Manager):
             {'key': token.key}
         )
 
-        # Strip long messages and remove diacritics
-        message = unidecode(render_to_string(template_name, context).strip())
-        return not sender.send(phone_number, message).failed
+        try:
+            return not sender.send_template(phone_number, slug='token-validation', context=context).failed
+        except sender.SMSSendingError:
+            return False
 
 
 class SMSToken(models.Model):
