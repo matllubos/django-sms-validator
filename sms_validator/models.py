@@ -28,13 +28,13 @@ class SMSTokenManager(models.Manager):
 
     logger = logging.getLogger('django-sms-validator')
 
-    def is_valid(self, obj, key):
+    def is_valid(self, obj, key, slug=None):
         """
         Check if key is valid token for obj if is the token is deactivated
         """
 
         token = get_object_or_none(self.model, validating_type=ContentType.objects.get_for_model(obj),
-                                   validating_id=obj.pk, is_active=True, key=key)
+                                   validating_id=obj.pk, is_active=True, key=key, slug=slug)
         if token is not None and not token.is_expired:
             token.is_active = False
             token.save()
@@ -42,31 +42,34 @@ class SMSTokenManager(models.Manager):
         else:
             return False
 
-    def count_tokens(self, obj):
+    def count_tokens(self, obj, slug=None):
         """
         Return count tokens for obj
         """
 
         return self.filter(validating_type=ContentType.objects.get_for_model(obj),
-                           validating_id=obj.pk).count()
+                           created_at__gte=timezone.now() - timedelta(seconds=config.SMS_MAX_TOKEN_AGE),
+                           validating_id=obj.pk, slug=slug).count()
 
-    def send_token(self, phone_number, obj, context, template_name='default_sms_template.html'):
+    def send_token(self, phone_number, obj, slug=None, context=None, template_slug='token-validation'):
         """
         Invalidate old tokens, create validation token and send key inside sms to selected phone_number
         """
+
+        context = context or {}
 
         # Invalidate old tokens
         self.filter(validating_type=ContentType.objects.get_for_model(obj),
                     validating_id=obj.pk, is_active=True).update(is_active=False)
 
         # Create new token
-        token = self.create(validating_obj=obj, phone_number=phone_number)
+        token = self.create(validating_obj=obj, phone_number=phone_number, slug=slug)
         context.update(
             {'key': token.key}
         )
 
         try:
-            return not sender.send_template(phone_number, slug='token-validation', context=context).failed
+            return not sender.send_template(phone_number, slug=template_slug, context=context).failed
         except sender.SMSSendingError:
             return False
 
@@ -79,6 +82,7 @@ class SMSToken(models.Model):
     created_at = models.DateTimeField(verbose_name=_('created'), auto_now_add=True, null=False, blank=False)
     is_active = models.BooleanField(verbose_name=_('is active'), default=True)
     phone_number = models.CharField(verbose_name=_('phone'), max_length=20, null=False, blank=False)
+    slug = models.SlugField(verbose_name=_('slug'), null=True, blank=True)
     validating_type = models.ForeignKey(ContentType, verbose_name=('content type'))
     validating_id = models.PositiveIntegerField(('object ID'))
     validating_obj = generic.GenericForeignKey('validating_type', 'validating_id')
@@ -104,7 +108,7 @@ class SMSToken(models.Model):
         return self.created_at + timedelta(seconds=config.SMS_MAX_TOKEN_AGE) < timezone.now()
 
     def __unicode__(self):
-        return self.key
+        return '%s (%s)' % (self.key, self.slug)
 
     class Meta:
         verbose_name = _('SMS token')
