@@ -35,16 +35,11 @@ class SMSTokenManager(models.Manager):
 
         token = get_object_or_none(self.model, validating_type=ContentType.objects.get_for_model(obj),
                                    validating_id=obj.pk, is_active=True, key=key, slug=slug)
-        if token is not None and not token.is_expired:
-            return True
-        else:
-            return False
+        return token is not None and not token.is_expired
 
     def deactivate_tokens(self, obj, slug=None):
-        for token in self.filter(validating_type=ContentType.objects.get_for_model(obj), is_active=True,
-                                 validating_id=obj.pk, slug=slug):
-            token.is_active = False
-            token.save()
+        self.filter(validating_type=ContentType.objects.get_for_model(obj), is_active=True, validating_id=obj.pk,
+                    slug=slug).update(is_active=False)
 
     def count_tokens(self, obj, slug=None):
         """
