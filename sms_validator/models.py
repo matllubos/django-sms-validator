@@ -50,6 +50,15 @@ class SMSTokenManager(models.Manager):
                            created_at__gte=timezone.now() - timedelta(seconds=config.SMS_MAX_TOKEN_AGE),
                            validating_id=obj.pk, slug=slug).count()
 
+    def last_valid_token(self, obj, slug=None):
+        """
+        Return last valid token for obj or None
+        """
+
+        return self.filter(validating_type=ContentType.objects.get_for_model(obj),
+                           created_at__gte=timezone.now() - timedelta(seconds=config.SMS_MAX_TOKEN_AGE),
+                           validating_id=obj.pk, slug=slug).order_by('-created_at').first()
+
     def send_token(self, phone_number, obj, slug=None, context=None, template_slug='token-validation'):
         """
         Invalidate old tokens, create validation token and send key inside sms to selected phone_number
@@ -101,6 +110,10 @@ class SMSToken(models.Model):
         Random token generating
         """
         return digit_token_generator()
+
+    @property
+    def expiration_datetime(self):
+        return self.created_at + timedelta(seconds=config.SMS_MAX_TOKEN_AGE)
 
     @property
     def is_expired(self):
