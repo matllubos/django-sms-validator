@@ -15,7 +15,10 @@ from django.conf import settings
 
 from chamber.shortcuts import get_object_or_none
 
-from sms_operator.sender import sender
+try:
+    from ats_sms_operator import sender
+except ImportError:
+    from sms_operator.sender import sender
 
 from sms_validator import config
 
