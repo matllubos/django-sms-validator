@@ -35,12 +35,10 @@ setup(
         'Topic :: Internet :: WWW/HTTP :: Site Management',
     ],
     install_requires=[
-        'django-chamber>=0.0.10',
-        'django-sms-operator>=0.0.3',
+        'django-chamber>=0.1.13',
     ],
     dependency_links=[
-        'https://github.com/matllubos/django-chamber/tarball/0.0.10#egg=django-chamber-0.0.10',
-        'https://github.com/matllubos/django-sms-operator/tarball/0.0.4#egg=django-sms-operator-0.0.4',
+        'https://github.com/druids/django-chamber/tarball/0.1.13#egg=django-chamber-0.1.13',
     ],
     zip_safe=False
 )
