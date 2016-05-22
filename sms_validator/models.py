@@ -8,7 +8,7 @@ from datetime import timedelta
 
 from django.db import models
 from django.utils import timezone
-from django.contrib.contenttypes import generic
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
@@ -96,7 +96,7 @@ class SMSToken(models.Model):
     slug = models.SlugField(verbose_name=_('slug'), null=True, blank=True)
     validating_type = models.ForeignKey(ContentType, verbose_name=('content type'))
     validating_id = models.PositiveIntegerField(('object ID'))
-    validating_obj = generic.GenericForeignKey('validating_type', 'validating_id')
+    validating_obj = GenericForeignKey('validating_type', 'validating_id')
 
     objects = SMSTokenManager()
 
