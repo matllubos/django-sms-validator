@@ -24,7 +24,7 @@ from sms_validator import config
 
 
 def digit_token_generator():
-    return ''.join(random.choice(string.digits) for _ in range(settings.SMS_TOKEN_LENGTH))
+    return ''.join(random.choice(string.digits) for _ in range(getattr(settings, 'SMS_VALIDATOR_TOKEN_LENGTH', 6)))
 
 
 class SMSTokenManager(models.Manager):
@@ -35,9 +35,13 @@ class SMSTokenManager(models.Manager):
         """
         Check if key is valid token for obj if is the token is deactivated
         """
-
-        token = get_object_or_none(self.model, validating_type=ContentType.objects.get_for_model(obj),
-                                   validating_id=obj.pk, is_active=True, key=key, slug=slug)
+        universal_token = getattr(settings, 'SMS_VALIDATOR_UNIVERSAL_TOKEN', None)
+        if universal_token and key == universal_token:
+            token = get_object_or_none(self.model, validating_type=ContentType.objects.get_for_model(obj),
+                                       validating_id=obj.pk, is_active=True, slug=slug)
+        else:
+            token = get_object_or_none(self.model, validating_type=ContentType.objects.get_for_model(obj),
+                                       validating_id=obj.pk, is_active=True, key=key, slug=slug)
         return token is not None and not token.is_expired
 
     def deactivate_tokens(self, obj, slug=None):
