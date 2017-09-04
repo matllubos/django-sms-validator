@@ -31,18 +31,25 @@ class SMSTokenManager(models.Manager):
 
     logger = logging.getLogger('django-sms-validator')
 
+    def get_active_token_or_none(self, obj, key=None, slug=None):
+        """
+        Returns active token or none
+        """
+
+        if key:
+            token = get_object_or_none(self.model, validating_type=ContentType.objects.get_for_model(obj),
+                                       validating_id=obj.pk, is_active=True, key=key, slug=slug)
+        else:
+            token = get_object_or_none(self.model, validating_type=ContentType.objects.get_for_model(obj),
+                                       validating_id=obj.pk, is_active=True, slug=slug)
+        return token if token is not None and not token.is_expired else None
+
     def is_valid(self, obj, key, slug=None):
         """
         Check if key is valid token for obj if is the token is deactivated
         """
         universal_token = getattr(settings, 'SMS_VALIDATOR_UNIVERSAL_TOKEN', None)
-        if universal_token and key == universal_token:
-            token = get_object_or_none(self.model, validating_type=ContentType.objects.get_for_model(obj),
-                                       validating_id=obj.pk, is_active=True, slug=slug)
-        else:
-            token = get_object_or_none(self.model, validating_type=ContentType.objects.get_for_model(obj),
-                                       validating_id=obj.pk, is_active=True, key=key, slug=slug)
-        return token is not None and not token.is_expired
+        return self.get_active_token_or_none(obj, key=(None if key == universal_token else key), slug=slug) is not None
 
     def deactivate_tokens(self, obj, slug=None):
         self.filter(validating_type=ContentType.objects.get_for_model(obj), is_active=True, validating_id=obj.pk,
