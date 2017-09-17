@@ -11,7 +11,6 @@ from django.utils import timezone
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import ugettext_lazy as _
-from django.conf import settings
 
 from chamber.shortcuts import get_object_or_none
 
@@ -20,36 +19,58 @@ try:
 except ImportError:
     from sms_operator.sender import sender
 
-from sms_validator import config
+from sms_validator.config import settings
 
 
 def digit_token_generator():
-    return ''.join(random.choice(string.digits) for _ in range(getattr(settings, 'SMS_VALIDATOR_TOKEN_LENGTH', 6)))
+    return ''.join(random.choice(string.digits) for _ in range(settings.TOKEN_LENGTH))
 
 
 class SMSTokenManager(models.Manager):
 
     logger = logging.getLogger('django-sms-validator')
 
-    def get_active_token_or_none(self, obj, key=None, slug=None):
+    def get_last_active_token_or_none(self, obj, slug=None):
+        """
+        Returns last active or none
+        """
+
+        return get_object_or_none(self.model, validating_type=ContentType.objects.get_for_model(obj),
+                                  validating_id=obj.pk, is_active=True, slug=slug)
+
+    def get_active_token_or_none(self, obj, key, slug=None):
+        """
+        Returns token or none
+        """
+
+        if key != settings.UNIVERSAL_TOKEN:
+            token = get_object_or_none(self.model, validating_type=ContentType.objects.get_for_model(obj),
+                                       validating_id=obj.pk, is_active=True, key=key, slug=slug)
+        else:
+            token = self.get_last_active_token_or_none(obj, slug)
+        return token
+
+    def get_not_expired_last_active_token_or_none(self, obj, slug=None):
+        """
+        Returns last active token or none
+        """
+
+        token = self.get_last_active_token_or_none(obj, slug)
+        return token if token is not None and not token.is_expired else None
+
+    def get_not_expired_active_token_or_none(self, obj, key, slug=None):
         """
         Returns active token or none
         """
 
-        if key:
-            token = get_object_or_none(self.model, validating_type=ContentType.objects.get_for_model(obj),
-                                       validating_id=obj.pk, is_active=True, key=key, slug=slug)
-        else:
-            token = get_object_or_none(self.model, validating_type=ContentType.objects.get_for_model(obj),
-                                       validating_id=obj.pk, is_active=True, slug=slug)
+        token = self.get_active_token_or_none(obj, key, slug)
         return token if token is not None and not token.is_expired else None
 
     def is_valid(self, obj, key, slug=None):
         """
         Check if key is valid token for obj if is the token is deactivated
         """
-        universal_token = getattr(settings, 'SMS_VALIDATOR_UNIVERSAL_TOKEN', None)
-        return self.get_active_token_or_none(obj, key=(None if key == universal_token else key), slug=slug) is not None
+        return self.get_not_expired_active_token_or_none(obj, key=key, slug=slug) is not None
 
     def deactivate_tokens(self, obj, slug=None):
         self.filter(validating_type=ContentType.objects.get_for_model(obj), is_active=True, validating_id=obj.pk,
@@ -61,17 +82,8 @@ class SMSTokenManager(models.Manager):
         """
 
         return self.filter(validating_type=ContentType.objects.get_for_model(obj),
-                           created_at__gte=timezone.now() - timedelta(seconds=config.SMS_MAX_TOKEN_AGE),
+                           created_at__gte=timezone.now() - timedelta(seconds=settings.MAX_TOKEN_AGE_SECONDS),
                            validating_id=obj.pk, slug=slug).count()
-
-    def last_valid_token(self, obj, slug=None):
-        """
-        Return last valid token for obj or None
-        """
-
-        return self.filter(validating_type=ContentType.objects.get_for_model(obj),
-                           created_at__gte=timezone.now() - timedelta(seconds=config.SMS_MAX_TOKEN_AGE),
-                           validating_id=obj.pk, slug=slug).order_by('-created_at').first()
 
     def send_token(self, phone_number, obj, slug=None, context=None, template_slug='token-validation'):
         """
@@ -114,8 +126,12 @@ class SMSToken(models.Model):
     def save(self, *args, **kwargs):
         if not self.key:
             key = self.generate_key()
+            i = 0
             while SMSToken.objects.filter(key=key).exists():
                 key = self.generate_key()
+                i += 1
+                if i > 1000:
+                    raise RuntimeError('Max iterations to generate key exceeded')
             self.key = key
         return super(SMSToken, self).save(*args, **kwargs)
 
@@ -127,11 +143,11 @@ class SMSToken(models.Model):
 
     @property
     def expiration_datetime(self):
-        return self.created_at + timedelta(seconds=config.SMS_MAX_TOKEN_AGE)
+        return self.created_at + timedelta(seconds=settings.MAX_TOKEN_AGE_SECONDS)
 
     @property
     def is_expired(self):
-        return self.created_at + timedelta(seconds=config.SMS_MAX_TOKEN_AGE) < timezone.now()
+        return self.created_at + timedelta(seconds=settings.MAX_TOKEN_AGE_SECONDS) < timezone.now()
 
     def __unicode__(self):
         return '%s (%s)' % (self.key, self.slug)
