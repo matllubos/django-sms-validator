@@ -14,10 +14,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from chamber.shortcuts import get_object_or_none
 
-try:
-    from ats_sms_operator import sender
-except ImportError:
-    from sms_operator.sender import sender
+from pymess.backend import sms
 
 from sms_validator.config import settings
 
@@ -102,10 +99,8 @@ class SMSTokenManager(models.Manager):
             {'key': token.key}
         )
 
-        try:
-            return not sender.send_template(phone_number, slug=template_slug, context=context).failed
-        except sender.SMSSendingError:
-            return False
+        message = sms.send_template(phone_number, slug=template_slug, context=context)
+        return message and not message.failed
 
 
 class SMSToken(models.Model):
