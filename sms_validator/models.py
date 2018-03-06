@@ -99,7 +99,7 @@ class SMSTokenManager(models.Manager):
             {'key': token.key}
         )
 
-        message = sms.send_template(phone_number, slug=template_slug, context=context)
+        message = sms.send_template(phone_number, slug=template_slug, context_data=context, related_objects=(obj,))
         return message and not message.failed
 
 
