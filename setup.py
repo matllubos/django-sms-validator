@@ -22,12 +22,12 @@ setup(
     include_package_data=True,
     packages=find_packages(),
     classifiers=[
-        'Development Status :: 0 - Beta',
+        'Development Status :: 3 - Alpha',
         'Environment :: Web Environment',
         'Framework :: Django',
         'Intended Audience :: Developers',
         'Intended Audience :: End Users/Desktop',
-        'License :: OSI Approved :: GNU LESSER GENERAL PUBLIC LICENSE (LGPL)',
+        'License :: OSI Approved :: BSD License',
         'Natural Language :: Czech',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
@@ -35,10 +35,7 @@ setup(
         'Topic :: Internet :: WWW/HTTP :: Site Management',
     ],
     install_requires=[
-        'django-chamber>=0.1.13',
-    ],
-    dependency_links=[
-        'https://github.com/druids/django-chamber/tarball/0.1.13#egg=django-chamber-0.1.13',
+        'django-chamber>=0.4.0',
     ],
     zip_safe=False
 )
