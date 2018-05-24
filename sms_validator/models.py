@@ -12,8 +12,6 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import ugettext_lazy as _
 
-from chamber.shortcuts import get_object_or_none
-
 from pymess.backend import sms
 
 from sms_validator.config import settings
@@ -29,27 +27,23 @@ class SMSTokenManager(models.Manager):
 
     def get_last_active_token_or_none(self, obj, slug=None):
         """
-        Returns last active or none
+        Returns last active or None
         """
-
-        return get_object_or_none(self.model, validating_type=ContentType.objects.get_for_model(obj),
-                                  validating_id=obj.pk, is_active=True, slug=slug)
+        return self.model.objects.filter(validating_type=ContentType.objects.get_for_model(obj),
+                                         validating_id=obj.pk, is_active=True, slug=slug).first()
 
     def get_active_token_or_none(self, obj, key, slug=None):
         """
-        Returns token or none
+        Returns token or None
         """
 
-        if key != settings.UNIVERSAL_TOKEN:
-            token = get_object_or_none(self.model, validating_type=ContentType.objects.get_for_model(obj),
-                                       validating_id=obj.pk, is_active=True, key=key, slug=slug)
-        else:
-            token = self.get_last_active_token_or_none(obj, slug)
-        return token
+        token = self.get_last_active_token_or_none(obj, slug)
+
+        return token if token and (key == settings.UNIVERSAL_TOKEN or key == token.key) else None
 
     def get_not_expired_last_active_token_or_none(self, obj, slug=None):
         """
-        Returns last active token or none
+        Returns last active token or None
         """
 
         token = self.get_last_active_token_or_none(obj, slug)
@@ -57,7 +51,7 @@ class SMSTokenManager(models.Manager):
 
     def get_not_expired_active_token_or_none(self, obj, key, slug=None):
         """
-        Returns active token or none
+        Returns active token or None
         """
 
         token = self.get_active_token_or_none(obj, key, slug)
@@ -89,15 +83,15 @@ class SMSTokenManager(models.Manager):
 
         context = context or {}
 
-        # Invalidate old tokens
-        self.filter(validating_type=ContentType.objects.get_for_model(obj),
-                    validating_id=obj.pk, is_active=True).update(is_active=False)
-
         # Create new token
         token = self.create(validating_obj=obj, phone_number=phone_number, slug=slug)
         context.update(
             {'key': token.key}
         )
+
+        # Invalidate old tokens
+        self.filter(validating_type=ContentType.objects.get_for_model(obj),
+                    validating_id=obj.pk, is_active=True).exclude(pk=token.pk).update(is_active=False)
 
         message = sms.send_template(phone_number, slug=template_slug, context_data=context, related_objects=(obj,))
         return message and not message.failed
