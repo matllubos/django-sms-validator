@@ -77,6 +77,9 @@ class SMSTokenManager(models.Manager):
                            validating_id=obj.pk, slug=slug).count()
 
     def send_token(self, phone_number, obj, slug=None, context=None, template_slug='token-validation'):
+        return self.create_and_send_token(phone_number, obj, slug, context, template_slug)[1]
+
+    def create_and_send_token(self, phone_number, obj, slug=None, context=None, template_slug='token-validation'):
         """
         Invalidate old tokens, create validation token and send key inside sms to selected phone_number
         """
@@ -94,7 +97,7 @@ class SMSTokenManager(models.Manager):
                     validating_id=obj.pk, is_active=True).exclude(pk=token.pk).update(is_active=False)
 
         message = sms.send_template(phone_number, slug=template_slug, context_data=context, related_objects=(obj,))
-        return message and not message.failed
+        return token, message and not message.failed
 
 
 class SMSToken(models.Model):
