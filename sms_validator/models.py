@@ -109,7 +109,7 @@ class SMSToken(models.Model):
     is_active = models.BooleanField(verbose_name=_('is active'), default=True)
     phone_number = models.CharField(verbose_name=_('phone'), max_length=20, null=False, blank=False)
     slug = models.SlugField(verbose_name=_('slug'), null=True, blank=True)
-    validating_type = models.ForeignKey(ContentType, verbose_name=('content type'))
+    validating_type = models.ForeignKey(ContentType, verbose_name=('content type'), on_delete=models.CASCADE)
     validating_id = models.PositiveIntegerField(('object ID'))
     validating_obj = GenericForeignKey('validating_type', 'validating_id')
 

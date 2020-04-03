@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
                 ('phone_number', models.CharField(max_length=20, verbose_name='phone')),
                 ('slug', models.SlugField(null=True, verbose_name='slug', blank=True)),
                 ('validating_id', models.PositiveIntegerField(verbose_name='object ID')),
-                ('validating_type', models.ForeignKey(verbose_name='content type', to='contenttypes.ContentType')),
+                ('validating_type', models.ForeignKey(verbose_name='content type', to='contenttypes.ContentType', on_delete=models.CASCADE)),
             ],
             options={
                 'ordering': ('-created_at',),
