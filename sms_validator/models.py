@@ -76,10 +76,12 @@ class SMSTokenManager(models.Manager):
                            created_at__gte=timezone.now() - timedelta(seconds=settings.MAX_TOKEN_AGE_SECONDS),
                            validating_id=obj.pk, slug=slug).count()
 
-    def send_token(self, phone_number, obj, slug=None, context=None, template_slug='token-validation'):
-        return self.create_and_send_token(phone_number, obj, slug, context, template_slug)[1]
+    def send_token(self, phone_number, obj, slug=None, context=None, template_slug='token-validation',
+                   key_generator=None):
+        return self.create_and_send_token(phone_number, obj, slug, context, template_slug, key_generator)[1]
 
-    def create_and_send_token(self, phone_number, obj, slug=None, context=None, template_slug='token-validation'):
+    def create_and_send_token(self, phone_number, obj, slug=None, context=None, template_slug='token-validation',
+                              key_generator=None):
         """
         Invalidate old tokens, create validation token and send key inside sms to selected phone_number
         """
@@ -87,7 +89,11 @@ class SMSTokenManager(models.Manager):
         context = context or {}
 
         # Create new token
-        token = self.create(validating_obj=obj, phone_number=phone_number, slug=slug)
+        token = SMSToken(validating_obj=obj, phone_number=phone_number, slug=slug)
+        if key_generator:
+            token.generate_key(key_generator=key_generator)
+        token.save()
+
         context.update(
             {'key': token.key}
         )
@@ -117,21 +123,26 @@ class SMSToken(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.key:
-            key = self.generate_key()
-            i = 0
-            while SMSToken.objects.filter(key=key).exists():
-                key = self.generate_key()
-                i += 1
-                if i > 1000:
-                    raise RuntimeError('Max iterations to generate key exceeded')
-            self.key = key
+            self.generate_key()
         return super(SMSToken, self).save(*args, **kwargs)
 
-    def generate_key(self):
+    def generate_key(self, key_generator=digit_token_generator):
         """
-        Random token generating
+        Generates token key and sets it to `key` attribute.
+
+        Arguments:
+            key_generator: Function that generates token key, must be able to return different value for each call.
+
+        Returns:
+            Generated key.
         """
-        return digit_token_generator()
+        for _ in range(1000):
+            key = key_generator()
+            if not SMSToken.objects.filter(key=key).exists():
+                self.key = key
+                return key
+
+        raise RuntimeError('Max iterations to generate key exceeded')
 
     @property
     def expiration_datetime(self):
